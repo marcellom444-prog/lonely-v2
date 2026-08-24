@@ -81,6 +81,28 @@ class LonelyBot(commands.Bot):
             print(f"❌ Slash sync failed: {exc!r}")
             traceback.print_exc()
 
+
+    async def on_app_command_error(
+        self,
+        interaction: discord.Interaction,
+        error: discord.app_commands.AppCommandError,
+    ):
+        original = getattr(error, "original", error)
+        error_text = f"{type(original).__name__}: {original}"
+
+        if len(error_text) > 1800:
+            error_text = error_text[:1800] + "..."
+
+        message = f"Command error:\n```py\n{error_text}\n```"
+
+        try:
+            if interaction.response.is_done():
+                await interaction.followup.send(message, ephemeral=True)
+            else:
+                await interaction.response.send_message(message, ephemeral=True)
+        except Exception:
+            pass
+
     async def on_ready(self):
         print("=" * 60)
         print(f"✅ Lonely is online as {self.user}")
