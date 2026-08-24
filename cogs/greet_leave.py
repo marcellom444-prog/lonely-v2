@@ -63,11 +63,30 @@ class GreetLeave(commands.Cog):
         await patch_settings(interaction.guild.id, greet_channel=channel.id, greet_enabled=True)
         await interaction.response.send_message(f"✅ Greet messages enabled in {channel.mention}.", ephemeral=True)
 
-    @greet.command(name="message", description="Set the greeting message.")
+    @greet.command(name="message", description="Set or clear the greeting message.")
+    @app_commands.describe(message="Greeting text. Leave blank, or use clear, for embed-only.")
     @app_commands.checks.has_permissions(manage_guild=True)
-    async def greet_message(self, interaction: discord.Interaction, message: str):
-        await patch_settings(interaction.guild.id, greet_message=message)
-        await interaction.response.send_message("Greet message saved.", ephemeral=True)
+    async def greet_message(
+        self,
+        interaction: discord.Interaction,
+        message: str | None = None,
+    ):
+        value = (message or "").strip()
+        if value.casefold() in {"clear", "none", "remove"}:
+            value = ""
+
+        await patch_settings(interaction.guild.id, greet_message=value)
+
+        if value:
+            await interaction.response.send_message(
+                "Greet message saved.",
+                ephemeral=True,
+            )
+        else:
+            await interaction.response.send_message(
+                "Greet text cleared. Only the greet embed will be sent.",
+                ephemeral=True,
+            )
 
     @greet.command(name="embed", description="Use a saved embed for greetings.")
     @app_commands.checks.has_permissions(manage_guild=True)
@@ -96,11 +115,30 @@ class GreetLeave(commands.Cog):
         await patch_settings(interaction.guild.id, leave_channel=channel.id, leave_enabled=True)
         await interaction.response.send_message(f"✅ Leave messages enabled in {channel.mention}.", ephemeral=True)
 
-    @leave.command(name="message", description="Set the leave message.")
+    @leave.command(name="message", description="Set or clear the leave message.")
+    @app_commands.describe(message="Leave text. Leave blank, or use clear, for embed-only.")
     @app_commands.checks.has_permissions(manage_guild=True)
-    async def leave_message(self, interaction: discord.Interaction, message: str):
-        await patch_settings(interaction.guild.id, leave_message=message)
-        await interaction.response.send_message("Leave message saved.", ephemeral=True)
+    async def leave_message(
+        self,
+        interaction: discord.Interaction,
+        message: str | None = None,
+    ):
+        value = (message or "").strip()
+        if value.casefold() in {"clear", "none", "remove"}:
+            value = ""
+
+        await patch_settings(interaction.guild.id, leave_message=value)
+
+        if value:
+            await interaction.response.send_message(
+                "Leave message saved.",
+                ephemeral=True,
+            )
+        else:
+            await interaction.response.send_message(
+                "Leave text cleared. Only the leave embed will be sent.",
+                ephemeral=True,
+            )
 
     @leave.command(name="embed", description="Use a saved embed for leave messages.")
     @app_commands.checks.has_permissions(manage_guild=True)
@@ -130,9 +168,19 @@ class GreetLeave(commands.Cog):
         channel = override_channel or member.guild.get_channel(settings.get("greet_channel", 0))
         if not isinstance(channel, discord.TextChannel):
             return
-        content = render(settings.get("greet_message", "Welcome {user.mention} to **{server}**!"), member)
+        if "greet_message" in settings:
+            template = settings.get("greet_message") or ""
+        else:
+            template = "Welcome {user.mention} to **{server}**!"
+
+        content = render(template, member) if template else ""
         data = await get_saved_embed(member.guild.id, settings.get("greet_embed", ""))
         embed = render_embed(data, member) if data else None
+
+        # Discord rejects a message with no content and no embed.
+        if not content and embed is None:
+            return
+
         await channel.send(content=content or None, embed=embed)
 
     async def send_leave(self, member: discord.Member, override_channel=None):
@@ -142,9 +190,19 @@ class GreetLeave(commands.Cog):
         channel = override_channel or member.guild.get_channel(settings.get("leave_channel", 0))
         if not isinstance(channel, discord.TextChannel):
             return
-        content = render(settings.get("leave_message", "**{user}** left **{server}**."), member)
+        if "leave_message" in settings:
+            template = settings.get("leave_message") or ""
+        else:
+            template = "**{user}** left **{server}**."
+
+        content = render(template, member) if template else ""
         data = await get_saved_embed(member.guild.id, settings.get("leave_embed", ""))
         embed = render_embed(data, member) if data else None
+
+        # Discord rejects a message with no content and no embed.
+        if not content and embed is None:
+            return
+
         await channel.send(content=content or None, embed=embed)
 
     @commands.Cog.listener()
