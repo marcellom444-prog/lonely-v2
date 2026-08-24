@@ -12,10 +12,14 @@ from db import get_settings, patch_settings
 
 
 def render(template: str, member: discord.Member):
+    guild_icon = member.guild.icon.url if member.guild.icon else ""
     return (
         template.replace("{user.mention}", member.mention)
         .replace("{user.name}", member.name)
         .replace("{user.id}", str(member.id))
+        .replace("{user.avatar}", member.display_avatar.url)
+        .replace("{user.default_avatar}", member.default_avatar.url)
+        .replace("{server.icon}", guild_icon)
         .replace("{user}", str(member))
         .replace("{server}", member.guild.name)
         .replace("{membercount}", str(member.guild.member_count or len(member.guild.members)))
@@ -35,18 +39,35 @@ async def get_saved_embed(guild_id: int, name: str):
 
 def render_embed(data: dict, member: discord.Member) -> discord.Embed:
     rendered = json.loads(json.dumps(data))
-    for field in ("title", "description"):
+
+    for field in ("title", "description", "url"):
         if isinstance(rendered.get(field), str):
             rendered[field] = render(rendered[field], member)
-    if isinstance(rendered.get("footer"), dict) and isinstance(rendered["footer"].get("text"), str):
-        rendered["footer"]["text"] = render(rendered["footer"]["text"], member)
-    if isinstance(rendered.get("author"), dict) and isinstance(rendered["author"].get("name"), str):
-        rendered["author"]["name"] = render(rendered["author"]["name"], member)
+
+    if isinstance(rendered.get("footer"), dict):
+        if isinstance(rendered["footer"].get("text"), str):
+            rendered["footer"]["text"] = render(rendered["footer"]["text"], member)
+        if isinstance(rendered["footer"].get("icon_url"), str):
+            rendered["footer"]["icon_url"] = render(rendered["footer"]["icon_url"], member)
+
+    if isinstance(rendered.get("author"), dict):
+        if isinstance(rendered["author"].get("name"), str):
+            rendered["author"]["name"] = render(rendered["author"]["name"], member)
+        if isinstance(rendered["author"].get("icon_url"), str):
+            rendered["author"]["icon_url"] = render(rendered["author"]["icon_url"], member)
+        if isinstance(rendered["author"].get("url"), str):
+            rendered["author"]["url"] = render(rendered["author"]["url"], member)
+
+    for media_key in ("thumbnail", "image"):
+        if isinstance(rendered.get(media_key), dict) and isinstance(rendered[media_key].get("url"), str):
+            rendered[media_key]["url"] = render(rendered[media_key]["url"], member)
+
     for field in rendered.get("fields", []):
         if isinstance(field.get("name"), str):
             field["name"] = render(field["name"], member)
         if isinstance(field.get("value"), str):
             field["value"] = render(field["value"], member)
+
     return discord.Embed.from_dict(rendered)
 
 

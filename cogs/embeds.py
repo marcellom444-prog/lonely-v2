@@ -12,11 +12,23 @@ from discord.ext import commands
 from config import DB_PATH
 
 
+DYNAMIC_URL_PLACEHOLDERS = {
+    "{user.avatar}",
+    "{user.default_avatar}",
+    "{server.icon}",
+}
+
+
 def valid_url(value: str | None) -> bool:
     if not value:
         return False
+
+    value = value.strip()
+    if value in DYNAMIC_URL_PLACEHOLDERS:
+        return True
+
     try:
-        parsed = urlparse(value.strip())
+        parsed = urlparse(value)
         return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
     except Exception:
         return False
@@ -175,7 +187,7 @@ class EmbedAllModal(discord.ui.Modal, title="Edit Embed"):
         if image:
             if not valid_url(image):
                 return await interaction.response.send_message(
-                    "Invalid image URL. Use a full http:// or https:// link.",
+                    "Invalid image URL. Use a full http:// or https:// link, or a supported placeholder.",
                     ephemeral=True,
                 )
             d["image"] = {"url": image}
@@ -435,7 +447,7 @@ class Embeds(commands.Cog):
     ):
         if icon_url and not valid_url(icon_url):
             return await interaction.response.send_message(
-                "Invalid icon URL. Use a full http:// or https:// link.",
+                "Invalid icon URL. Use a full http:// or https:// link, or a supported placeholder.",
                 ephemeral=True,
             )
 
@@ -460,7 +472,7 @@ class Embeds(commands.Cog):
     ):
         if icon_url and not valid_url(icon_url):
             return await interaction.response.send_message(
-                "Invalid icon URL. Use a full http:// or https:// link.",
+                "Invalid icon URL. Use a full http:// or https:// link, or a supported placeholder.",
                 ephemeral=True,
             )
 
@@ -485,7 +497,7 @@ class Embeds(commands.Cog):
 
         if not valid_url(url):
             return await interaction.response.send_message(
-                "Invalid image URL. Use a full http:// or https:// link.",
+                "Invalid image URL. Use a full http:// or https:// link, or a supported placeholder.",
                 ephemeral=True,
             )
 
@@ -506,7 +518,7 @@ class Embeds(commands.Cog):
 
         if not valid_url(url):
             return await interaction.response.send_message(
-                "Invalid thumbnail URL. Use a full http:// or https:// link.",
+                "Invalid thumbnail URL. Use a full http:// or https:// link, or a supported placeholder.",
                 ephemeral=True,
             )
 
