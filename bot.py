@@ -35,12 +35,9 @@ EXTENSIONS = [
     "cogs.tickets",
     "cogs.autoresponse",
     "cogs.voice_system",
-<<<<<<< HEAD
     "cogs.help",
-=======
     "cogs.snipe",
             "cogs.help",
->>>>>>> be79980 (Update Lonely bot)
 ]
 
 
