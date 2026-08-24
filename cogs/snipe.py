@@ -80,10 +80,10 @@ class Snipe(commands.Cog):
             color=discord.Color(0x000000),
             timestamp=item.deleted_at,
         )
-        embed.set_author(
-            name=item.author_name,
-            icon_url=item.author_avatar or discord.Embed.Empty,
-        )
+        if item.author_avatar:
+            embed.set_author(name=item.author_name, icon_url=item.author_avatar)
+        else:
+            embed.set_author(name=item.author_name)
         embed.set_footer(
             text=f"Snipe {index}/{len(entries)} • User ID: {item.author_id}"
         )

@@ -124,7 +124,13 @@ class LonelyBot(commands.Bot):
             return await ctx.send("I couldn't understand one of those arguments.")
         print(f"Prefix command error: {error!r}")
         traceback.print_exception(type(error), error, error.__traceback__)
-        await ctx.send("Something went wrong while running that command. Check the console for the error.")
+        error_text = f"{type(error).__name__}: {error}"
+        if len(error_text) > 1800:
+            error_text = error_text[:1800] + "..."
+        try:
+            await ctx.send(f"Command error:\n```py\n{error_text}\n```")
+        except discord.HTTPException:
+            pass
 
 
 async def tree_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
@@ -140,7 +146,10 @@ async def tree_error(interaction: discord.Interaction, error: app_commands.AppCo
     else:
         print(f"Slash command error: {original!r}")
         traceback.print_exception(type(original), original, original.__traceback__)
-        message = "Something went wrong while running that command. Check the console for the error."
+        error_text = f"{type(original).__name__}: {original}"
+        if len(error_text) > 1800:
+            error_text = error_text[:1800] + "..."
+        message = f"Command error:\n```py\n{error_text}\n```"
 
     try:
         if interaction.response.is_done():
