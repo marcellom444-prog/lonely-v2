@@ -94,12 +94,53 @@ class Embeds(commands.Cog):
                 rows = await cur.fetchall()
         await interaction.response.send_message("Saved embeds: " + (", ".join(f"`{r[0]}`" for r in rows) if rows else "None"), ephemeral=True)
 
-    @embed.command(name="show")
-    async def show(self, interaction: discord.Interaction, name: str):
+    @embed.command(name="show", description="Send a saved embed.")
+    async def show(
+        self,
+        interaction: discord.Interaction,
+        name: str,
+        channel: discord.TextChannel | None = None,
+    ):
         d = await load_embed(interaction.guild.id, name)
         if not d:
-            return await interaction.response.send_message("Embed not found.", ephemeral=True)
-        await interaction.response.send_message(embed=discord.Embed.from_dict(d))
+            return await interaction.response.send_message(
+                "Embed not found.",
+                ephemeral=True,
+            )
+
+        target = channel or interaction.channel
+
+        if channel is not None:
+            perms = channel.permissions_for(interaction.user)
+            if not perms.send_messages:
+                return await interaction.response.send_message(
+                    "You can't send messages in that channel.",
+                    ephemeral=True,
+                )
+
+        try:
+            await target.send(embed=discord.Embed.from_dict(d))
+        except discord.Forbidden:
+            return await interaction.response.send_message(
+                "I can't send embeds in that channel.",
+                ephemeral=True,
+            )
+        except discord.HTTPException:
+            return await interaction.response.send_message(
+                "Couldn't send that embed.",
+                ephemeral=True,
+            )
+
+        if target.id == interaction.channel.id:
+            await interaction.response.send_message(
+                "Embed sent.",
+                ephemeral=True,
+            )
+        else:
+            await interaction.response.send_message(
+                f"Embed sent to {target.mention}.",
+                ephemeral=True,
+            )
 
     @edit.command(name="all")
     @app_commands.checks.has_permissions(manage_messages=True)
