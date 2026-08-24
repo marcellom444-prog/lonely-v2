@@ -63,6 +63,53 @@ def clean_embed_data(data: dict) -> dict:
     return d
 
 
+def resolve_dynamic_urls(data: dict, member: discord.Member | discord.User | None, guild: discord.Guild | None) -> dict:
+    """Resolve saved URL placeholders before sending an embed to Discord."""
+    d = json.loads(json.dumps(data))
+
+    user_avatar = ""
+    default_avatar = ""
+    if member is not None:
+        user_avatar = str(member.display_avatar.url)
+        default_avatar = str(member.default_avatar.url)
+
+    server_icon = str(guild.icon.url) if guild and guild.icon else ""
+
+    replacements = {
+        "{user.avatar}": user_avatar,
+        "{user.default_avatar}": default_avatar,
+        "{server.icon}": server_icon,
+    }
+
+    def resolve(value):
+        if not isinstance(value, str):
+            return value
+        return replacements.get(value.strip(), value)
+
+    if isinstance(d.get("url"), str):
+        d["url"] = resolve(d["url"])
+
+    for key in ("image", "thumbnail"):
+        obj = d.get(key)
+        if isinstance(obj, dict) and isinstance(obj.get("url"), str):
+            url = resolve(obj["url"])
+            if url:
+                obj["url"] = url
+            else:
+                d.pop(key, None)
+
+    for key in ("author", "footer"):
+        obj = d.get(key)
+        if isinstance(obj, dict) and isinstance(obj.get("icon_url"), str):
+            url = resolve(obj["icon_url"])
+            if url:
+                obj["icon_url"] = url
+            else:
+                obj.pop("icon_url", None)
+
+    return d
+
+
 async def load_embed(guild_id: int, name: str):
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
@@ -100,7 +147,12 @@ async def save_embed(guild_id: int, name: str, data: dict):
 
 async def send_preview(interaction: discord.Interaction, data: dict, message: str = "Updated."):
     try:
-        embed = discord.Embed.from_dict(clean_embed_data(data))
+        resolved = resolve_dynamic_urls(
+            clean_embed_data(data),
+            interaction.user,
+            interaction.guild,
+        )
+        embed = discord.Embed.from_dict(resolved)
         if interaction.response.is_done():
             await interaction.followup.send(message, embed=embed, ephemeral=True)
         else:
@@ -335,7 +387,12 @@ class Embeds(commands.Cog):
                 )
 
         try:
-            await target.send(embed=discord.Embed.from_dict(clean_embed_data(data)))
+            resolved = resolve_dynamic_urls(
+                clean_embed_data(data),
+                interaction.user,
+                interaction.guild,
+            )
+            await target.send(embed=discord.Embed.from_dict(resolved))
         except discord.Forbidden:
             return await interaction.response.send_message(
                 "I can't send embeds in that channel.",
